@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Let's Recon - Passive OSINT Aggregator & Security Dashboard</title>
+    <!-- Google Fonts: Inter & Fira Code -->
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                    colors: {
+                        cyber: {
+                            bg: '#080b11',
+                            card: 'rgba(15, 23, 42, 0.65)',
+                            border: 'rgba(255, 255, 255, 0.08)',
+                            primary: '#10b981', /* Emerald */
+                            secondary: '#06b6d4', /* Cyan */
+                            accent: '#3b82f6', /* Blue */
+                            purple: '#8b5cf6', /* Purple */
+                            warning: '#f59e0b', /* Amber */
+                            danger: '#ef4444', /* Red */
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #080b11;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.05) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(6, 182, 212, 0.05) 0px, transparent 50%),
+                radial-gradient(at 50% 100%, rgba(139, 92, 246, 0.03) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+        
+        .glass-card {
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .glass-card:hover {
+            border-color: rgba(6, 182, 212, 0.15);
+            box-shadow: 0 4px 20px -2px rgba(6, 182, 212, 0.05);
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.3);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(6, 182, 212, 0.4);
+        }
+
+        /* Glowing accents */
+        .neon-glow-primary {
+            text-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+        }
+        .neon-glow-secondary {
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
+        }
+    </style>
+</head>
+<body class="text-gray-200 font-sans min-h-screen">
+    
+    <!-- Top Decorative Line -->
+    <div class="h-1 w-full bg-gradient-to-r from-cyber-primary via-cyber-secondary to-cyber-purple"></div>
+
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+            <div>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-cyber-primary/10 flex items-center justify-center border border-cyber-primary/30">
+                        <svg class="w-6 h-6 text-cyber-primary animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                    </div>
+                    <h1 class="text-3xl font-extrabold text-white tracking-tight uppercase">Let's <span class="text-cyber-primary neon-glow-primary">Recon</span></h1>
+                </div>
+                <p class="text-gray-400 mt-1 text-sm">Professional Passive OSINT & Reconnaissance Intelligence Aggregator</p>
+            </div>
+            
+            <!-- Connection status badge -->
+            <div id="connectionStatus" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold">
+                <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                Disconnected from Local Server
+            </div>
+        </header>
+
+        <!-- Main Layout Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 mb-8">
+            
+            <!-- LEFT PANEL: SCAN HISTORY -->
+            <div class="space-y-6 lg:col-span-1">
+                <div class="glass-card rounded-2xl p-5 shadow-xl sticky top-6">
+                    <h2 class="text-sm font-bold text-white uppercase tracking-wider border-b border-slate-800 pb-3 mb-4 flex items-center justify-between">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-cyber-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            Scan History
+                        </span>
+                        <span id="historyCount" class="text-xs px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800 text-gray-400 font-semibold font-mono">0</span>
+                    </h2>
+                    
+                    <!-- Search History -->
+                    <div class="relative mb-3.5">
+                        <input type="text" id="historySearch" placeholder="Search targets..." 
+                               class="w-full pl-8 pr-3 py-1.5 bg-slate-900/60 border border-slate-800 rounded-lg text-xs focus:outline-none focus:border-cyber-secondary text-white placeholder-gray-500 transition-all">
+                        <svg class="w-3.5 h-3.5 text-gray-500 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    </div>
+
+                    <!-- History Items List Container -->
+                    <div id="historyList" class="space-y-2 max-h-[640px] overflow-y-auto pr-1">
+                        <div class="text-gray-500 italic text-xs text-center py-4">No scans found in history.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT PANEL: SCANNER CONTENT -->
+            <div class="lg:col-span-3 space-y-8">
+                <!-- Target Input Card -->
+                <section class="glass-card rounded-2xl p-6 shadow-xl">
+            <div class="flex flex-col lg:flex-row gap-4 items-end">
+                <div class="flex-1 w-full">
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-cyber-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                        </svg>
+                        Target Domain / Host / IP
+                    </label>
+                    <div class="relative">
+                        <input type="text" id="targetInput" 
+                               class="w-full px-4 py-3 bg-slate-900/60 border border-slate-700/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyber-secondary/50 focus:border-cyber-secondary text-white placeholder-gray-500 font-medium transition-all"
+                               placeholder="e.g. example.com or 8.8.8.8">
+                    </div>
+                </div>
+                <div class="flex gap-3 w-full lg:w-auto">
+                    <button id="startBtn" 
+                            class="flex-1 lg:flex-initial px-8 py-3 bg-gradient-to-r from-cyber-primary to-cyber-secondary hover:from-cyber-primary/90 hover:to-cyber-secondary/90 text-slate-950 font-bold rounded-xl transition-all shadow-lg hover:shadow-cyber-primary/20 flex items-center justify-center gap-2 uppercase text-xs tracking-wider">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Start Scan
+                    </button>
+                    <button id="clearBtn" 
+                            class="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-gray-300 font-semibold rounded-xl transition-all border border-slate-700/50 flex items-center justify-center gap-2 text-xs uppercase tracking-wider">
+                        Clear Dashboard
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Progress Status Bar (hidden initially) -->
+            <div id="progressContainer" class="hidden mt-6 pt-5 border-t border-slate-800">
+                <div class="flex justify-between items-center mb-2">
+                    <span id="scanStatusText" class="text-sm font-semibold text-cyber-secondary flex items-center gap-2">
+                        <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.253 8H18" />
+                        </svg>
+                        Initializing Module Pipelines...
+                    </span>
+                    <span id="progressPercentage" class="text-xs font-bold text-cyber-primary">0%</span>
+                </div>
+                <div class="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
+                    <div id="progressBar" class="bg-gradient-to-r from-cyber-primary to-cyber-secondary h-full w-0 transition-all duration-300"></div>
+                </div>
+                <div id="activeModulesRow" class="flex flex-wrap gap-3 mt-3 text-xs text-gray-400">
+                    <!-- Dynamic updates of currently scanning modules -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Summary Metric Cards -->
+        <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="glass-card rounded-xl p-4 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-lg bg-cyber-secondary/10 flex items-center justify-center border border-cyber-secondary/20">
+                    <svg class="w-6 h-6 text-cyber-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Subdomains</div>
+                    <div id="metricSubdomains" class="text-2xl font-bold text-white mt-0.5">0</div>
+                </div>
+            </div>
+            
+            <div class="glass-card rounded-xl p-4 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-lg bg-cyber-purple/10 flex items-center justify-center border border-cyber-purple/20">
+                    <svg class="w-6 h-6 text-cyber-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider">DNS Records</div>
+                    <div id="metricDNS" class="text-2xl font-bold text-white mt-0.5">0</div>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-xl p-4 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-lg bg-cyber-accent/10 flex items-center justify-center border border-cyber-accent/20">
+                    <svg class="w-6 h-6 text-cyber-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Wayback URLs</div>
+                    <div id="metricWayback" class="text-2xl font-bold text-white mt-0.5">0</div>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-xl p-4 flex items-center gap-4">
+                <div id="leakMetricContainer" class="w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center border border-slate-700 transition-colors">
+                    <svg id="leakMetricIcon" class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Leaked / Assets</div>
+                    <div id="metricLeaks" class="text-2xl font-bold text-white mt-0.5">0</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Dashboard Tabs & Content -->
+        <section class="glass-card rounded-2xl overflow-hidden shadow-2xl">
+            <!-- Tabs Menu -->
+            <div class="flex border-b border-slate-800 bg-slate-950/40 overflow-x-auto">
+                <button class="tab-btn active px-6 py-4 border-b-2 border-cyber-primary text-cyber-primary font-bold text-sm flex items-center gap-2 whitespace-nowrap" data-tab="overview">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z" /></svg>
+                    Overview
+                </button>
+                <button class="tab-btn px-6 py-4 border-b-2 border-transparent text-gray-400 hover:text-gray-200 font-semibold text-sm flex items-center gap-2 whitespace-nowrap" data-tab="subdomains">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                    Subdomains & IPs
+                </button>
+                <button class="tab-btn px-6 py-4 border-b-2 border-transparent text-gray-400 hover:text-gray-200 font-semibold text-sm flex items-center gap-2 whitespace-nowrap" data-tab="dns">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    DNS Map
+                </button>
+                <button class="tab-btn px-6 py-4 border-b-2 border-transparent text-gray-400 hover:text-gray-200 font-semibold text-sm flex items-center gap-2 whitespace-nowrap" data-tab="wayback">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Wayback URLs
+                </button>
+                <button class="tab-btn px-6 py-4 border-b-2 border-transparent text-gray-400 hover:text-gray-200 font-semibold text-sm flex items-center gap-2 whitespace-nowrap" data-tab="leaks">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    Exposed Leaks
+                </button>
+                <button class="tab-btn px-6 py-4 border-b-2 border-transparent text-gray-400 hover:text-gray-200 font-semibold text-sm flex items-center gap-2 whitespace-nowrap" data-tab="raw">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    Raw Stream logs
+                </button>
+            </div>
+
+            <!-- Tab Contents -->
+            <div class="p-6">
+                
+                <!-- 1. OVERVIEW TAB -->
+                <div class="tab-pane active" id="overview">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        
+                        <!-- WHOIS / Domain card -->
+                        <div class="glass-card bg-slate-950/20 border border-slate-800 rounded-xl p-5 lg:col-span-2">
+                            <h3 class="text-base font-bold text-white border-b border-slate-800 pb-3 mb-4 flex items-center gap-2">
+                                <svg class="w-5 h-5 text-cyber-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                Target Registration Identity (WHOIS)
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm" id="whoisDetailsEmpty">
+                                <div class="text-gray-500 italic py-2">No target scanned yet. Run a scan to fetch registry WHOIS.</div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6 text-sm hidden" id="whoisDetails">
+                                <div>
+                                    <div class="text-gray-400 text-xs uppercase tracking-wider font-semibold">Registrar / Authority</div>
+                                    <div id="whoisRegistrar" class="text-white font-medium mt-1">-</div>
+                                </div>
+                                <div>
+                                    <div class="text-gray-400 text-xs uppercase tracking-wider font-semibold">Registration Date</div>
+                                    <div id="whoisCreated" class="text-white font-medium mt-1">-</div>
+                                </div>
+                                <div>
+                                    <div class="text-gray-400 text-xs uppercase tracking-wider font-semibold">Last Modified Date</div>
+                                    <div id="whoisChanged" class="text-white font-medium mt-1">-</div>
+                                </div>
+                                <div>
+                                    <div class="text-gray-400 text-xs uppercase tracking-wider font-semibold">Expiration Date</div>
+                                    <div id="whoisExpires" class="text-white font-medium mt-1">-</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- IP Geolocation Summary -->
+                        <div class="glass-card bg-slate-950/20 border border-slate-800 rounded-xl p-5">
+                            <h3 class="text-base font-bold text-white border-b border-slate-800 pb-3 mb-4 flex items-center gap-2">
+                                <svg class="w-5 h-5 text-cyber-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                Hosting & ASN Info
+                            </h3>
+                            <div id="geoDetailsEmpty" class="text-gray-500 italic text-sm">Waiting for DNS resolution...</div>
+                            <div id="geoDetails" class="space-y-3.5 text-sm hidden">
+                                <div class="flex justify-between items-start gap-4">
+                                    <span class="text-gray-400">Primary IP:</span>
+                                    <span id="geoIP" class="text-white font-mono text-right">-</span>
+                                </div>
+                                <div class="flex justify-between items-start gap-4">
+                                    <span class="text-gray-400">ISP / Provider:</span>
+                                    <span id="geoISP" class="text-white font-medium text-right">-</span>
+                                </div>
+                                <div class="flex justify-between items-start gap-4">
+                                    <span class="text-gray-400">Autonomous System:</span>
+                                    <span id="geoASN" class="text-cyber-secondary font-medium text-right text-xs truncate max-w-[180px] block" title="">-</span>
+                                </div>
+                                <div class="flex justify-between items-start gap-4">
+                                    <span class="text-gray-400">Geo Location:</span>
+                                    <span id="geoCountry" class="text-white font-medium text-right">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Firewall / WAF Protection -->
+                        <div class="glass-card bg-slate-950/20 border border-slate-800 rounded-xl p-5">
+                            <h3 class="text-base font-bold text-white border-b border-slate-800 pb-3 mb-4 flex items-center gap-2">
+                                <svg class="w-5 h-5 text-cyber-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                                Firewall & WAF Status
+                            </h3>
+                            <div id="wafDetailsEmpty" class="text-gray-500 italic text-sm">Waiting for firewall fingerprinting...</div>
+                            <div id="wafDetails" class="space-y-3.5 text-sm hidden">
+                                <div class="flex justify-between items-start gap-4">
+                                    <span class="text-gray-400">Shield Status:</span>
+                                    <span id="wafDetectedStatus" class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border">-</span>
+                                </div>
+                                <div class="flex justify-between items-start gap-4">
+                                    <span class="text-gray-400">Firewall Engine:</span>
+                                    <span id="wafFingerprint" class="text-white font-medium text-right font-mono text-xs truncate max-w-[170px] block">-</span>
+                                </div>
+                                <div class="flex justify-between items-start gap-4">
+                                    <span class="text-gray-400">Manufacturer:</span>
+                                    <span id="wafManufacturer" class="text-white font-medium text-right">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Brand Intelligence (Wikipedia / OSINT) -->
+                        <div class="glass-card bg-slate-950/20 border border-slate-800 rounded-xl p-5 lg:col-span-3">
+                            <h3 class="text-base font-bold text-white border-b border-slate-800 pb-3 mb-4 flex items-center gap-2">
+                                <svg class="w-5 h-5 text-cyber-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                                Human Intelligence & Context (Wikipedia)
+                            </h3>
+                            <div id="wikiDetailsEmpty" class="text-gray-500 italic text-sm">No OSINT details retrieved. Scan the brand target.</div>
+                            <div id="wikiDetails" class="grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
+                                <!-- Wikipedia articles loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. SUBDOMAINS TAB -->
+                <div class="tab-pane hidden" id="subdomains">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                        <div class="relative w-full md:w-72">
+                            <input type="text" id="subdomainSearch" placeholder="Filter subdomains..." 
+                                   class="w-full pl-9 pr-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-cyber-secondary">
+                            <svg class="w-4 h-4 text-gray-500 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="exportToCSV('subdomains')" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/60 rounded-lg text-xs font-semibold flex items-center gap-1.5 text-gray-300">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                Export CSV
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto border border-slate-800 rounded-xl">
+                        <table class="w-full text-sm text-left text-gray-300" id="subdomainsTable">
+                            <thead class="bg-slate-950/60 text-xs uppercase tracking-wider text-gray-400 border-b border-slate-800">
+                                <tr>
+                                    <th class="px-5 py-3">Hostname</th>
+                                    <th class="px-5 py-3">Discovery Agent</th>
+                                    <th class="px-5 py-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800/60 bg-slate-950/10">
+                                <tr id="subdomainsTableEmpty">
+                                    <td colspan="3" class="px-5 py-6 text-center text-gray-500 italic">No subdomains discovered. Run a scan to aggregate host records.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 3. DNS RECORDS TAB -->
+                <div class="tab-pane hidden" id="dns">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="dnsGrid">
+                        <!-- DNS records rendered into structured blocks -->
+                        <div class="glass-card bg-slate-950/20 border border-slate-800 rounded-xl p-5 md:col-span-2 text-center text-gray-500 italic py-10" id="dnsEmpty">
+                            No DNS records queried. Please execute a scan.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. WAYBACK URLS TAB -->
+                <div class="tab-pane hidden" id="wayback">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                        <div class="relative w-full md:w-72">
+                            <input type="text" id="waybackSearch" placeholder="Filter URLs..." 
+                                   class="w-full pl-9 pr-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-cyber-secondary">
+                            <svg class="w-4 h-4 text-gray-500 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="filterWayback('all', this)" class="wb-filter px-3 py-1 bg-cyber-secondary text-slate-950 font-bold rounded-lg text-xs">All</button>
+                            <button onclick="filterWayback('application/json', this)" class="wb-filter px-3 py-1 bg-slate-800 hover:bg-slate-700 text-gray-400 hover:text-gray-200 rounded-lg text-xs">JSON</button>
+                            <button onclick="filterWayback('js', this)" class="wb-filter px-3 py-1 bg-slate-800 hover:bg-slate-700 text-gray-400 hover:text-gray-200 rounded-lg text-xs">Scripts</button>
+                            <button onclick="filterWayback('config', this)" class="wb-filter px-3 py-1 bg-slate-800 hover:bg-slate-700 text-gray-400 hover:text-gray-200 rounded-lg text-xs">Config</button>
+                            <button onclick="exportToCSV('wayback')" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/60 rounded-lg text-xs font-semibold flex items-center gap-1.5 text-gray-300 ml-2">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                Export CSV
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto border border-slate-800 rounded-xl max-h-[500px]">
+                        <table class="w-full text-sm text-left text-gray-300" id="waybackTable">
+                            <thead class="bg-slate-950/60 text-xs uppercase tracking-wider text-gray-400 border-b border-slate-800 sticky top-0">
+                                <tr>
+                                    <th class="px-5 py-3">Archived URL</th>
+                                    <th class="px-5 py-3 w-28">Status</th>
+                                    <th class="px-5 py-3 w-40">Mime Type</th>
+                                    <th class="px-5 py-3 w-36">Saved Date</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800/60 bg-slate-950/10">
+                                <tr id="waybackTableEmpty">
+                                    <td colspan="4" class="px-5 py-6 text-center text-gray-500 italic">No web archive traces queried. Run a scan.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 5. EXPOSED LEAKS TAB -->
+                <div class="tab-pane hidden" id="leaks">
+                    <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Configuration Risks & Leaked Assets</h3>
+                    <div class="space-y-4" id="leaksContainer">
+                        <div class="glass-card bg-slate-950/20 border border-slate-800 rounded-xl p-6 text-center text-gray-500 italic" id="leaksEmpty">
+                            No secrets or public config exposures scanned. Run a scan to query file pathways.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. RAW STREAM LOGS TAB -->
+                <div class="tab-pane hidden" id="raw">
+                    <!-- Module Select Filter -->
+                    <div class="flex items-center gap-3 mb-4">
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wider">Show Logs for:</label>
+                        <select id="moduleLogFilter" class="bg-slate-900 border border-slate-700 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-cyber-secondary">
+                            <option value="all">All Modules</option>
+                            <option value="domain_scraping">Domain Scraping</option>
+                            <option value="cert_transparency">Certificate Transparency</option>
+                            <option value="passive_dns">Passive DNS & ASN</option>
+                            <option value="historical_repos">Historical Repos</option>
+                            <option value="code_leakage">Code Leakage</option>
+                            <option value="human_intel">Human Intelligence</option>
+                        </select>
+                    </div>
+
+                    <!-- Console block -->
+                    <div class="bg-slate-950 border border-slate-900 rounded-xl p-4 font-mono text-xs text-green-400 h-96 overflow-y-auto" id="consoleOutput">
+                        <div class="text-gray-600 flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-gray-600 animate-ping"></span>
+                            System terminal ready. Waiting to fire scanning pipeline...
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Javascript Logic -->
+    <script>
+        const MODULE_IDS = [
+            "domain_scraping",
+            "cert_transparency",
+            "passive_dns",
+            "historical_repos",
+            "code_leakage",
+            "human_intel",
+            "firewall"
+        ];
+
+        let ws = null;
+        let subdomainsList = [];
+        let waybackUrlsList = [];
+        let dnsRecordsList = [];
+        let leaksList = [];
+        let currentFilterWayback = 'all';
+
+        // Element Selectors
+        const startBtn = document.getElementById('startBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const targetInput = document.getElementById('targetInput');
+        const progressContainer = document.getElementById('progressContainer');
+        const scanStatusText = document.getElementById('scanStatusText');
+        const progressPercentage = document.getElementById('progressPercentage');
+        const progressBar = document.getElementById('progressBar');
+        const activeModulesRow = document.getElementById('activeModulesRow');
+        const connectionStatus = document.getElementById('connectionStatus');
+        
+        // Metrics Selectors
+        const metricSubdomains = document.getElementById('metricSubdomains');
+        const metricDNS = document.getElementById('metricDNS');
+        const metricWayback = document.getElementById('metricWayback');
+        const metricLeaks = document.getElementById('metricLeaks');
+        const leakMetricContainer = document.getElementById('leakMetricContainer');
+        const leakMetricIcon = document.getElementById('leakMetricIcon');
+
+        // Tab selection logic
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => {
+                    b.classList.remove('active', 'border-cyber-primary', 'text-cyber-primary', 'font-bold');
+                    b.classList.add('border-transparent', 'text-gray-400', 'font-semibold');
+                });
+                btn.classList.add('active', 'border-cyber-primary', 'text-cyber-primary', 'font-bold');
+                btn.classList.remove('border-transparent', 'text-gray-400', 'font-semibold');
+
+                const targetTab = btn.getAttribute('data-tab');
+                document.querySelectorAll('.tab-pane').forEach(pane => {
+                    pane.classList.add('hidden');
+                });
+                document.getElementById(targetTab).classList.remove('hidden');
+            });
+        });
+
+        // Subdomain search filter
+        document.getElementById('subdomainSearch').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#subdomainsTable tbody tr:not(#subdomainsTableEmpty)');
+            rows.forEach(row => {
+                const text = row.querySelector('.subdomain-name').textContent.toLowerCase();
+                if (text.includes(query)) {
+                    row.classList.remove('hidden');
+                } else {
+                    row.classList.add('hidden');
+                }
+            });
+        });
+
+        // Wayback URL search filter
+        document.getElementById('waybackSearch').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#waybackTable tbody tr:not(#waybackTableEmpty)');
+            rows.forEach(row => {
+                const text = row.querySelector('.wb-url').textContent.toLowerCase();
+                const matchesSearch = text.includes(query);
+                const matchesFilter = filterUrlByMime(row, currentFilterWayback);
+                
+                if (matchesSearch && matchesFilter) {
+                    row.classList.remove('hidden');
+                } else {
+                    row.classList.add('hidden');
+                }
+            });
+        });
+
+        // Module log filtering
+        const moduleLogFilter = document.getElementById('moduleLogFilter');
+        moduleLogFilter.addEventListener('change', () => {
+            const val = moduleLogFilter.value;
+            const logLines = document.querySelectorAll('#consoleOutput .log-line');
+            logLines.forEach(line => {
+                if (val === 'all' || line.getAttribute('data-module') === val) {
+                    line.classList.remove('hidden');
+                } else {
+                    line.classList.add('hidden');
+                }
+            });
+        });
+
+        // Helper to filter Wayback URLs by mimetype
+        function filterUrlByMime(row, filter) {
+            if (filter === 'all') return true;
+            const mime = row.getAttribute('data-mime').toLowerCase();
+            const url = row.querySelector('.wb-url').textContent.toLowerCase();
+            
+            if (filter === 'application/json') {
+                return mime.includes('json');
+            } else if (filter === 'js') {
+                return mime.includes('javascript') || mime.includes('script') || url.endsWith('.js');
+            } else if (filter === 'config') {
+                return url.includes('config') || url.includes('.env') || url.includes('settings') || url.includes('properties');
+            }
+            return true;
+        }
+
+        function filterWayback(filter, btn) {
+            currentFilterWayback = filter;
+            document.querySelectorAll('.wb-filter').forEach(b => {
+                b.classList.remove('bg-cyber-secondary', 'text-slate-950', 'font-bold');
+                b.classList.add('bg-slate-800', 'text-gray-400', 'hover:text-gray-200');
+            });
+            if (btn) {
+                btn.classList.add('bg-cyber-secondary', 'text-slate-950', 'font-bold');
+                btn.classList.remove('bg-slate-800', 'text-gray-400', 'hover:text-gray-200');
+            }
+
+            const query = document.getElementById('waybackSearch').value.toLowerCase();
+            const rows = document.querySelectorAll('#waybackTable tbody tr:not(#waybackTableEmpty)');
+            
+            rows.forEach(row => {
+                const text = row.querySelector('.wb-url').textContent.toLowerCase();
+                const matchesSearch = text.includes(query);
+                const matchesFilter = filterUrlByMime(row, filter);
+                
+                if (matchesSearch && matchesFilter) {
+                    row.classList.remove('hidden');
+                } else {
+                    row.classList.add('hidden');
+                }
+            });
+        }
+
+        // Web socket Connection
+        function connect() {
+            // Check current protocol to support secure/nonsecure WebSockets
+            const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:";
+            ws = new WebSocket(`${wsProto}//${window.location.host}/ws`);
+            
+            ws.onopen = () => {
+                connectionStatus.innerHTML = `
+                    <span class="w-2 h-2 rounded-full bg-cyber-primary animate-pulse"></span>
+                    Connected to Local Server
+                `;
+                connectionStatus.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyber-primary/10 border border-cyber-primary/30 text-cyber-primary text-xs font-semibold";
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    
+                    switch(message.type) {
+                        case "scan_start":
+                            handleScanStart(message.target);
+                            break;
+                            
+                        case "scan_complete":
+                            handleScanComplete();
+                            break;
+                            
+                        case "module_start":
+                            handleModuleStart(message.module_id);
+                            break;
+                            
+                        case "module_data":
+                            handleModuleData(message.module_id, message.data);
+                            break;
+                            
+                        case "parsed_data":
+                            handleParsedData(message.category, message.data);
+                            break;
+                            
+                        case "module_complete":
+                            handleModuleComplete(message.module_id);
+                            break;
+                            
+                        case "error":
+                            handleError(message.message);
+                            break;
+                    }
+                } catch (e) {
+                    console.error("WebSocket message parsing error: ", e);
+                }
+            };
+            
+            ws.onclose = () => {
+                connectionStatus.innerHTML = `
+                    <span class="w-2 h-2 rounded-full bg-cyber-warning animate-pulse"></span>
+                    Reconnecting in 2s...
+                `;
+                connectionStatus.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyber-warning/10 border border-cyber-warning/30 text-cyber-warning text-xs font-semibold";
+                setTimeout(connect, 2000);
+            };
+            
+            ws.onerror = (error) => {
+                console.error("WebSocket error: ", error);
+            };
+        }
+
+        // Reset Dashboard State
+        function clearDashboard() {
+            // Empty lists
+            subdomainsList = [];
+            waybackUrlsList = [];
+            dnsRecordsList = [];
+            leaksList = [];
+
+            // Reset UI lists
+            document.querySelector('#subdomainsTable tbody').innerHTML = `
+                <tr id="subdomainsTableEmpty">
+                    <td colspan="3" class="px-5 py-6 text-center text-gray-500 italic">No subdomains discovered. Run a scan to aggregate host records.</td>
+                </tr>
+            `;
+            document.querySelector('#waybackTable tbody').innerHTML = `
+                <tr id="waybackTableEmpty">
+                    <td colspan="4" class="px-5 py-6 text-center text-gray-500 italic">No web archive traces queried. Run a scan.</td>
+                </tr>
+            `;
+            document.getElementById('dnsGrid').innerHTML = `
+                <div class="glass-card bg-slate-950/20 border border-slate-800 rounded-xl p-5 md:col-span-2 text-center text-gray-500 italic py-10" id="dnsEmpty">
+                    No DNS records queried. Please execute a scan.
+                </div>
+            `;
+            document.getElementById('leaksContainer').innerHTML = `
+                <div class="glass-card bg-slate-950/20 border border-slate-800 rounded-xl p-6 text-center text-gray-500 italic" id="leaksEmpty">
+                    No secrets or public config exposures scanned. Run a scan to query file pathways.
+                </div>
+            `;
+            
+            // WHOIS & GeoIP Reset
+            document.getElementById('whoisDetails').classList.add('hidden');
+            document.getElementById('whoisDetailsEmpty').classList.remove('hidden');
+            document.getElementById('geoDetails').classList.add('hidden');
+            document.getElementById('geoDetailsEmpty').classList.remove('hidden');
+            document.getElementById('wikiDetails').classList.add('hidden');
+            document.getElementById('wikiDetailsEmpty').classList.remove('hidden');
+            document.getElementById('wafDetails').classList.add('hidden');
+            document.getElementById('wafDetailsEmpty').classList.remove('hidden');
+
+            // Reset Metrics
+            metricSubdomains.textContent = "0";
+            metricDNS.textContent = "0";
+            metricWayback.textContent = "0";
+            metricLeaks.textContent = "0";
+            leakMetricContainer.className = "w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center border border-slate-700 transition-colors";
+            leakMetricIcon.className = "w-6 h-6 text-gray-400";
+
+            // Reset Terminal & Progress
+            document.getElementById('consoleOutput').innerHTML = `
+                <div class="text-gray-600 flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 rounded-full bg-gray-600 animate-ping"></span>
+                    System terminal cleared. Ready for next pipeline deployment.
+                </div>
+            `;
+            progressContainer.classList.add('hidden');
+        }
+
+        // Active Scan Tracker
+        let activeModules = new Set();
+        let completedModules = new Set();
+
+        function handleScanStart(target) {
+            clearDashboard();
+            activeModules.clear();
+            completedModules.clear();
+            
+            progressContainer.classList.remove('hidden');
+            scanStatusText.innerHTML = `Active Reconnaissance running on: <span class="text-white font-mono font-bold">${target}</span>`;
+            updateProgressBar();
+            
+            logToConsole("system", `Deploying OSINT Pipeline against: ${target}`, "text-cyber-secondary font-bold border-b border-slate-800 pb-2 mb-2");
+        }
+
+        function handleScanComplete() {
+            progressBar.className = "bg-cyber-primary h-full w-full transition-all duration-300";
+            progressPercentage.textContent = "100%";
+            scanStatusText.innerHTML = `<span class="text-cyber-primary font-bold">✓ Reconnaissance completed successfully!</span>`;
+            
+            logToConsole("system", "Pipeline shutdown complete. Aggregate reports populated in dashboard panels.", "text-cyber-primary font-bold border-t border-slate-800 pt-2 mt-2");
+            
+            // Auto open Overview tab if another was active
+            document.querySelector('[data-tab="overview"]').click();
+            
+            // Refresh scan history
+            fetchScanHistory();
+        }
+
+        function handleModuleStart(moduleId) {
+            activeModules.add(moduleId);
+            updateProgressBar();
+            updateActiveModulesUI();
+            logToConsole(moduleId, `[STARTING] Running module operations...`, "text-cyber-accent font-semibold");
+        }
+
+        function handleModuleComplete(moduleId) {
+            activeModules.delete(moduleId);
+            completedModules.add(moduleId);
+            updateProgressBar();
+            updateActiveModulesUI();
+            logToConsole(moduleId, `[COMPLETED] Pipeline operations closed.`, "text-cyber-primary font-bold");
+        }
+
+        function handleModuleData(moduleId, data) {
+            const isFilterMatch = moduleLogFilter.value === 'all' || moduleLogFilter.value === moduleId;
+            const line = document.createElement('div');
+            line.className = `log-line py-0.5 hover:bg-slate-900 px-1 border-l-2 border-slate-800 flex gap-2 font-mono ${isFilterMatch ? '' : 'hidden'}`;
+            line.setAttribute('data-module', moduleId);
+            
+            // Format timestamps and markers
+            let formattedText = data;
+            if (data.startsWith("[ALERT]")) {
+                line.className += " border-cyber-danger text-cyber-danger";
+            } else if (data.startsWith("[ERROR]")) {
+                line.className += " border-cyber-danger text-red-500 font-bold";
+            } else if (data.startsWith("[DNS]") || data.startsWith("[Cert]")) {
+                line.className += " border-cyber-secondary text-gray-300";
+            } else if (data.startsWith("---")) {
+                line.className += " border-slate-700 text-gray-400 font-bold mt-1";
+            }
+
+            line.innerHTML = `<span class="text-gray-500 flex-shrink-0 select-none">${new Date().toLocaleTimeString()}</span> <span class="break-all">${formattedText}</span>`;
+            
+            const consoleBox = document.getElementById('consoleOutput');
+            
+            // Remove waiting placeholder
+            if (consoleBox.querySelector('.text-gray-600')) {
+                consoleBox.innerHTML = '';
+            }
+
+            consoleBox.appendChild(line);
+            consoleBox.scrollTop = consoleBox.scrollHeight;
+        }
+
+        function handleParsedData(category, data) {
+            switch(category) {
+                case "subdomains":
+                    addSubdomainRow(data);
+                    break;
+                case "certificates":
+                    addCertRow(data);
+                    break;
+                case "dns_records":
+                    addDNSRecord(data);
+                    break;
+                case "wayback_urls":
+                    addWaybackRow(data);
+                    break;
+                case "leaks":
+                    addExposedLeak(data);
+                    break;
+                case "geoip":
+                    populateGeoIP(data);
+                    break;
+                case "whois":
+                    populateWhois(data);
+                    break;
+                case "wiki":
+                    addWikiResult(data);
+                    break;
+                case "waf":
+                    populateWAF(data);
+                    break;
+            }
+        }
+
+        function populateWAF(data) {
+            document.getElementById('wafDetailsEmpty').classList.add('hidden');
+            document.getElementById('wafDetails').classList.remove('hidden');
+
+            const statusBadge = document.getElementById('wafDetectedStatus');
+            const fingerprint = document.getElementById('wafFingerprint');
+            const manufacturer = document.getElementById('wafManufacturer');
+
+            if (data.detected) {
+                statusBadge.textContent = "ACTIVE PROTECTION";
+                statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-cyber-primary/10 border border-cyber-primary/20 text-cyber-primary animate-pulse";
+                fingerprint.textContent = data.name;
+                manufacturer.textContent = data.manufacturer !== "None" ? data.manufacturer : "Cloud/Third-Party";
+            } else {
+                statusBadge.textContent = "NO PROTECTION";
+                statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-cyber-warning/10 border border-cyber-warning/20 text-cyber-warning";
+                fingerprint.textContent = "Direct Connection";
+                manufacturer.textContent = "None detected";
+            }
+        }
+
+        function handleError(msg) {
+            scanStatusText.innerHTML = `<span class="text-cyber-danger font-bold">✗ Pipeline Error: ${msg}</span>`;
+            logToConsole("system", `[CRITICAL PIPELINE EXCEPTION] ${msg}`, "text-cyber-danger font-extrabold");
+        }
+
+        // Output helper for console
+        function logToConsole(moduleId, text, customClass = "") {
+            const line = document.createElement('div');
+            line.className = `log-line py-0.5 border-l-2 border-cyber-primary px-1 flex gap-2 font-mono ${customClass}`;
+            line.setAttribute('data-module', moduleId);
+            line.innerHTML = `<span class="text-gray-500 flex-shrink-0">${new Date().toLocaleTimeString()}</span> <span>${text}</span>`;
+            
+            const consoleBox = document.getElementById('consoleOutput');
+            if (consoleBox.querySelector('.text-gray-600')) {
+                consoleBox.innerHTML = '';
+            }
+            consoleBox.appendChild(line);
+            consoleBox.scrollTop = consoleBox.scrollHeight;
+        }
+
+        // Progress Bar Updater
+        function updateProgressBar() {
+            // Estimating progress based on completed modules
+            const totalModules = MODULE_IDS.length;
+            const pct = Math.round((completedModules.size / totalModules) * 100);
+            progressBar.style.width = `${pct}%`;
+            progressPercentage.textContent = `${pct}%`;
+        }
+
+        function updateActiveModulesUI() {
+            if (activeModules.size === 0) {
+                activeModulesRow.innerHTML = "No active scanning threads.";
+                return;
+            }
+            let html = '<span class="font-semibold text-gray-500 uppercase">Active Agents:</span> ';
+            activeModules.forEach(id => {
+                const name = id.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+                html += `<span class="px-2.5 py-0.5 rounded-full bg-cyber-secondary/10 border border-cyber-secondary/30 text-cyber-secondary animate-pulse font-medium">${name}</span>`;
+            });
+            activeModulesRow.innerHTML = html;
+        }
+
+        // Data Adders
+        function addSubdomainRow(item) {
+            // Deduplicate subdomains in frontend
+            if (subdomainsList.some(s => s.subdomain === item.subdomain)) return;
+            subdomainsList.push(item);
+            
+            // Remove empty placeholder
+            const emptyRow = document.getElementById('subdomainsTableEmpty');
+            if (emptyRow) emptyRow.remove();
+
+            const tbody = document.querySelector('#subdomainsTable tbody');
+            const row = document.createElement('tr');
+            row.className = "hover:bg-slate-900/40 transition-colors";
+            row.innerHTML = `
+                <td class="px-5 py-3 font-mono text-xs text-white subdomain-name break-all">${item.subdomain}</td>
+                <td class="px-5 py-3 text-xs"><span class="px-2 py-0.5 rounded-full bg-slate-900 border border-slate-700/60 text-gray-400 font-medium">${item.source}</span></td>
+                <td class="px-5 py-3 text-right">
+                    <button onclick="copyToClipboard('${item.subdomain}')" class="text-gray-400 hover:text-cyber-secondary px-2 py-1 rounded transition-colors" title="Copy Host">
+                        <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m-2 4h.01M9 16h.01M9 12h.01M12 12h.01M12 16h.01M15 11h.01M15 15h.01" /></svg>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+            
+            // Update counter
+            metricSubdomains.textContent = subdomainsList.length;
+        }
+
+        function addCertRow(item) {
+            // Reuse subdomains list mapping from cert transparency
+            addSubdomainRow({
+                subdomain: item.subdomain,
+                source: `Certificate Log (${item.issuer})`
+            });
+        }
+
+        function addDNSRecord(item) {
+            // Deduplicate DNS records (match both type and value)
+            if (dnsRecordsList.some(r => r.type === item.type && r.value === item.value)) return;
+            dnsRecordsList.push(item);
+            
+            // Remove empty placeholder
+            const dnsEmpty = document.getElementById('dnsEmpty');
+            if (dnsEmpty) dnsEmpty.remove();
+
+            const grid = document.getElementById('dnsGrid');
+            
+            // Check if record card for this type already exists, else create it
+            let card = document.getElementById(`dns-card-${item.type}`);
+            if (!card) {
+                card = document.createElement('div');
+                card.id = `dns-card-${item.type}`;
+                card.className = "glass-card bg-slate-950/20 border border-slate-800 rounded-xl p-5";
+                
+                let badgeClass = "bg-cyber-accent/10 border-cyber-accent/30 text-cyber-accent";
+                if (item.type === "MX") badgeClass = "bg-cyber-purple/10 border-cyber-purple/30 text-cyber-purple";
+                if (item.type === "TXT") badgeClass = "bg-cyber-warning/10 border-cyber-warning/30 text-cyber-warning";
+                if (item.type === "NS") badgeClass = "bg-teal-500/10 border-teal-500/30 text-teal-400";
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-3">
+                        <span class="px-2.5 py-0.5 rounded border text-xs font-bold ${badgeClass}">${item.type} RECORD</span>
+                    </div>
+                    <div class="space-y-2 max-h-48 overflow-y-auto pr-1 font-mono text-xs text-white dns-values-list"></div>
+                `;
+                grid.appendChild(card);
+            }
+
+            const list = card.querySelector('.dns-values-list');
+            const row = document.createElement('div');
+            row.className = "py-1.5 border-b border-slate-800/40 last:border-b-0 break-all select-all flex justify-between gap-4";
+            
+            // Highlight potential security headers in TXT
+            let formatVal = item.value;
+            if (item.type === "TXT") {
+                if (item.value.startsWith("v=spf1")) {
+                    formatVal = `<span class="text-cyber-primary">${item.value}</span> <span class="text-[9px] px-1 py-0.5 rounded bg-cyber-primary/10 border border-cyber-primary/20 text-cyber-primary">SPF Config</span>`;
+                } else if (item.value.startsWith("v=DMARC1")) {
+                    formatVal = `<span class="text-cyber-secondary">${item.value}</span> <span class="text-[9px] px-1 py-0.5 rounded bg-cyber-secondary/10 border border-cyber-secondary/20 text-cyber-secondary">DMARC Config</span>`;
+                } else if (item.value.includes("google-site-verification") || item.value.includes("MS=")) {
+                    formatVal = `<span class="text-gray-400">${item.value}</span> <span class="text-[9px] px-1 py-0.5 rounded bg-slate-800 border border-slate-700 text-gray-500">Domain Auth Key</span>`;
+                }
+            }
+
+            row.innerHTML = `<span>${formatVal}</span> <span class="text-gray-500 text-[10px]">TTL ${item.ttl}</span>`;
+            list.appendChild(row);
+
+            // Update counter
+            metricDNS.textContent = dnsRecordsList.length;
+        }
+
+        function addWaybackRow(item) {
+            // Deduplicate Wayback URLs by URL string
+            if (waybackUrlsList.some(u => u.url === item.url)) return;
+            waybackUrlsList.push(item);
+            
+            const emptyRow = document.getElementById('waybackTableEmpty');
+            if (emptyRow) emptyRow.remove();
+
+            const tbody = document.querySelector('#waybackTable tbody');
+            const row = document.createElement('tr');
+            row.className = "hover:bg-slate-900/40 transition-colors";
+            row.setAttribute('data-mime', item.mimetype);
+            
+            // Hide if not matched current filter
+            if (!filterUrlByMime(row, currentFilterWayback)) {
+                row.classList.add('hidden');
+            }
+
+            // Format status code colors
+            let statusBadge = `<span class="px-2 py-0.5 rounded bg-slate-900 text-gray-400 font-bold border border-slate-700/60">${item.status}</span>`;
+            if (item.status.startsWith('2')) statusBadge = `<span class="px-2 py-0.5 rounded bg-cyber-primary/10 border border-cyber-primary/20 text-cyber-primary font-bold">${item.status}</span>`;
+            if (item.status.startsWith('3')) statusBadge = `<span class="px-2 py-0.5 rounded bg-cyber-secondary/10 border border-cyber-secondary/20 text-cyber-secondary font-bold">${item.status}</span>`;
+            if (item.status.startsWith('4')) statusBadge = `<span class="px-2 py-0.5 rounded bg-cyber-warning/10 border border-cyber-warning/20 text-cyber-warning font-bold">${item.status}</span>`;
+            if (item.status.startsWith('5')) statusBadge = `<span class="px-2 py-0.5 rounded bg-cyber-danger/10 border border-cyber-danger/20 text-cyber-danger font-bold">${item.status}</span>`;
+
+            // Format timestamp into readable date
+            let dateStr = "Unknown";
+            if (item.timestamp && item.timestamp.length >= 8) {
+                const year = item.timestamp.substring(0, 4);
+                const month = item.timestamp.substring(4, 6);
+                const day = item.timestamp.substring(6, 8);
+                dateStr = `${year}-${month}-${day}`;
+            }
+
+            row.innerHTML = `
+                <td class="px-5 py-3 font-mono text-xs text-white break-all wb-url select-all">${item.url}</td>
+                <td class="px-5 py-3 text-xs">${statusBadge}</td>
+                <td class="px-5 py-3 text-xs text-gray-400">${item.mimetype}</td>
+                <td class="px-5 py-3 text-xs text-gray-500 font-mono">${dateStr}</td>
+            `;
+            tbody.appendChild(row);
+
+            // Update counter
+            metricWayback.textContent = waybackUrlsList.length;
+        }
+
+        function addExposedLeak(item) {
+            // Deduplicate leaks by path
+            if (leaksList.some(l => l.path === item.path)) return;
+            leaksList.push(item);
+
+            const leaksEmpty = document.getElementById('leaksEmpty');
+            if (leaksEmpty) leaksEmpty.remove();
+
+            const container = document.getElementById('leaksContainer');
+            const card = document.createElement('div');
+            
+            // Select alert color schemes based on severity
+            let sevClass = "bg-cyber-warning/10 border-cyber-warning/30 text-cyber-warning";
+            let glowClass = "border-cyber-warning/20";
+            if (item.severity === "High") {
+                sevClass = "bg-cyber-danger/10 border-cyber-danger/30 text-cyber-danger animate-pulse";
+                glowClass = "border-cyber-danger/40 shadow-lg shadow-cyber-danger/5";
+            }
+
+            card.className = `glass-card border rounded-xl p-5 ${glowClass} transition-all duration-300`;
+            card.innerHTML = `
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-slate-800 pb-3 mb-3">
+                    <div>
+                        <div class="flex items-center gap-2.5">
+                            <h4 class="text-sm font-bold text-white font-mono break-all">${item.path}</h4>
+                            <span class="px-2.5 py-0.5 rounded text-[10px] font-extrabold uppercase border ${sevClass}">${item.severity} SEVERITY</span>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">${item.description}</p>
+                    </div>
+                    <a href="${item.url}" target="_blank" class="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-gray-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all">
+                        Open Exposed Endpoint
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                    </a>
+                </div>
+                <div class="bg-slate-950 rounded-lg p-3 text-xs font-mono text-gray-300 border border-slate-900 flex justify-between gap-4">
+                    <span class="break-all select-all">${item.details}</span>
+                    <span class="text-gray-500 shrink-0 uppercase tracking-widest text-[9px] font-bold">Signature Match</span>
+                </div>
+            `;
+            container.appendChild(card);
+
+            // Update counter
+            metricLeaks.textContent = leaksList.length;
+
+            // Highlight metric badge color if High severity leak found
+            if (item.severity === "High") {
+                leakMetricContainer.className = "w-12 h-12 rounded-lg bg-cyber-danger/10 flex items-center justify-center border border-cyber-danger/30 transition-colors";
+                leakMetricIcon.className = "w-6 h-6 text-cyber-danger animate-pulse";
+            }
+        }
+
+        // Overview Populators
+        function populateWhois(item) {
+            document.getElementById('whoisDetailsEmpty').classList.add('hidden');
+            document.getElementById('whoisDetails').classList.remove('hidden');
+
+            document.getElementById('whoisRegistrar').textContent = item.registrar || "-";
+            document.getElementById('whoisCreated').textContent = item.created || "-";
+            document.getElementById('whoisChanged').textContent = item.changed || "-";
+            document.getElementById('whoisExpires').textContent = item.expires || "-";
+        }
+
+        function populateGeoIP(item) {
+            document.getElementById('geoDetailsEmpty').classList.add('hidden');
+            document.getElementById('geoDetails').classList.remove('hidden');
+
+            document.getElementById('geoIP').textContent = item.ip || "-";
+            document.getElementById('geoISP').textContent = item.isp || "-";
+            
+            const asnEl = document.getElementById('geoASN');
+            asnEl.textContent = item.asn || "-";
+            asnEl.title = item.asn;
+            
+            document.getElementById('geoCountry').textContent = `${item.city}, ${item.country}` || "-";
+        }
+
+        function addWikiResult(item) {
+            document.getElementById('wikiDetailsEmpty').classList.add('hidden');
+            
+            const wikiDiv = document.getElementById('wikiDetails');
+            wikiDiv.classList.remove('hidden');
+
+            const card = document.createElement('div');
+            card.className = "p-4 rounded-lg bg-slate-900/60 border border-slate-800 text-xs flex flex-col justify-between h-40";
+            card.innerHTML = `
+                <div>
+                    <h4 class="font-bold text-white text-sm truncate">${item.title}</h4>
+                    <p class="text-gray-400 mt-2 line-clamp-4 leading-relaxed">${item.snippet}</p>
+                </div>
+                <a href="${item.url}" target="_blank" class="text-cyber-secondary font-semibold hover:underline block mt-3 text-right">
+                    Read Article →
+                </a>
+            `;
+            wikiDiv.appendChild(card);
+        }
+
+        // Utilities
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const toast = document.createElement('div');
+                toast.className = "fixed bottom-5 right-5 bg-cyber-primary/95 text-slate-950 font-bold px-4 py-2.5 rounded-lg shadow-xl text-xs uppercase tracking-wider z-50 border border-cyber-primary/20 animate-bounce";
+                toast.textContent = "Copied to clipboard!";
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2500);
+            }).catch(e => {
+                console.error("Clipboard copy failed: ", e);
+            });
+        }
+
+        function exportToCSV(type) {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            let filename = "export.csv";
+
+            if (type === "subdomains") {
+                if (subdomainsList.length === 0) return;
+                csvContent += "Hostname,Source\n";
+                subdomainsList.forEach(item => {
+                    csvContent += `"${item.subdomain}","${item.source}"\n`;
+                });
+                filename = "subdomains.csv";
+            } else if (type === "wayback") {
+                if (waybackUrlsList.length === 0) return;
+                csvContent += "Archived URL,Status,Mime Type,Saved Timestamp\n";
+                waybackUrlsList.forEach(item => {
+                    csvContent += `"${item.url}","${item.status}","${item.mimetype}","${item.timestamp}"\n`;
+                });
+                filename = "historical_urls.csv";
+            }
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Scan History Operations
+        async function fetchScanHistory() {
+            try {
+                const response = await fetch('/api/scans');
+                if (!response.ok) return;
+                const scans = await response.json();
+                
+                const historyList = document.getElementById('historyList');
+                const historyCount = document.getElementById('historyCount');
+                if (historyCount) historyCount.textContent = scans.length;
+                
+                if (!historyList) return;
+                
+                if (scans.length === 0) {
+                    historyList.innerHTML = `<div class="text-gray-500 italic text-xs text-center py-4">No scans found in history.</div>`;
+                    return;
+                }
+                
+                historyList.innerHTML = '';
+                scans.forEach(item => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = "group relative flex items-center justify-between p-3 rounded-xl bg-slate-900/40 hover:bg-slate-900/80 border border-slate-800/80 hover:border-cyber-secondary/30 transition-all cursor-pointer";
+                    itemDiv.setAttribute('data-target', item.target);
+                    
+                    itemDiv.onclick = (e) => {
+                        if (e.target.closest('button')) return;
+                        loadScanDetails(item.target);
+                    };
+                    
+                    itemDiv.innerHTML = `
+                        <div class="flex-1 min-w-0 pr-2">
+                            <div class="text-xs font-semibold text-white font-mono truncate group-hover:text-cyber-secondary transition-colors">${item.target}</div>
+                            <div class="text-[10px] text-gray-500 mt-0.5 flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                ${formatTimestamp(item.timestamp)}
+                            </div>
+                        </div>
+                        <button class="text-gray-500 hover:text-cyber-danger p-1 rounded opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all" title="Delete scan record">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                    `;
+                    
+                    const delBtn = itemDiv.querySelector('button');
+                    delBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        deleteScanHistory(item.target);
+                    };
+                    
+                    historyList.appendChild(itemDiv);
+                });
+            } catch (err) {
+                console.error("Error fetching scan history:", err);
+            }
+        }
+
+        async function loadScanDetails(target) {
+            targetInput.value = target;
+            scanStatusText.innerHTML = `Loading cached findings for: <span class="text-white font-mono font-bold">${target}</span>`;
+            
+            try {
+                const response = await fetch(`/api/scan/${encodeURIComponent(target)}`);
+                if (!response.ok) {
+                    throw new Error("Failed to retrieve cached scan findings");
+                }
+                const resData = await response.json();
+                
+                clearDashboard();
+                scanStatusText.innerHTML = `Loaded cached findings for: <span class="text-cyber-primary font-mono font-bold">${target}</span>`;
+                
+                const results = resData.results || {};
+                
+                if (results.subdomains) {
+                    results.subdomains.forEach(item => addSubdomainRow(item));
+                }
+                if (results.certificates) {
+                    results.certificates.forEach(item => addCertRow(item));
+                }
+                if (results.dns_records) {
+                    results.dns_records.forEach(item => addDNSRecord(item));
+                }
+                if (results.wayback_urls) {
+                    results.wayback_urls.forEach(item => addWaybackRow(item));
+                }
+                if (results.leaks) {
+                    results.leaks.forEach(item => addExposedLeak(item));
+                }
+                if (results.geoip && results.geoip.length > 0) {
+                    populateGeoIP(results.geoip[0]);
+                }
+                if (results.whois && results.whois.length > 0) {
+                    populateWhois(results.whois[0]);
+                }
+                if (results.wiki) {
+                    results.wiki.forEach(item => addWikiResult(item));
+                }
+                if (results.waf && results.waf.length > 0) {
+                    populateWAF(results.waf[0]);
+                }
+                
+                progressContainer.classList.add('hidden');
+                
+                // Print a clean message to the terminal console
+                logToConsole("system", `Retrieved complete OSINT reports for ${target} from local SQLite database storage.`, "text-cyber-primary font-bold border-b border-slate-800 pb-2 mb-2");
+                
+            } catch (err) {
+                alert(`Error loading cached data: ${err.message}`);
+            }
+        }
+
+        async function deleteScanHistory(target) {
+            if (!confirm(`Are you sure you want to delete scan history for ${target}?`)) return;
+            try {
+                const response = await fetch(`/api/scan/${encodeURIComponent(target)}`, {
+                    method: 'DELETE'
+                });
+                if (response.ok) {
+                    fetchScanHistory();
+                    if (targetInput.value === target) {
+                        clearDashboard();
+                        targetInput.value = '';
+                    }
+                }
+            } catch (err) {
+                console.error("Error deleting scan history:", err);
+            }
+        }
+
+        function formatTimestamp(tsStr) {
+            try {
+                const parts = tsStr.split(" ");
+                const dateParts = parts[0].split("-");
+                const timeParts = parts[1].split(":");
+                const date = new Date(dateParts[0], dateParts[1] - 1, dateParts[2], timeParts[0], timeParts[1], timeParts[2]);
+                const now = new Date();
+                const diffMs = now - date;
+                const diffMins = Math.floor(diffMs / 60000);
+                if (diffMins < 1) return "Just now";
+                if (diffMins < 60) return `${diffMins}m ago`;
+                const diffHours = Math.floor(diffMins / 60);
+                if (diffHours < 24) return `${diffHours}h ago`;
+                return parts[0];
+            } catch (e) {
+                return tsStr;
+            }
+        }
+
+        // Event Listeners
+        startBtn.addEventListener('click', () => {
+            const target = targetInput.value.trim();
+            if (!target) {
+                alert("Please input a valid target domain, URL or IP address.");
+                return;
+            }
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ action: 'start', target: target }));
+            } else {
+                alert("WebSocket pipeline connection closed. Check server status.");
+            }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            targetInput.value = "";
+            clearDashboard();
+        });
+
+        targetInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                startBtn.click();
+            }
+        });
+
+        // Search scan history list
+        document.getElementById('historySearch').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const items = document.querySelectorAll('#historyList > div');
+            items.forEach(item => {
+                const target = item.getAttribute('data-target').toLowerCase();
+                if (target.includes(query)) {
+                    item.classList.remove('hidden');
+                } else {
+                    item.classList.add('hidden');
+                }
+            });
+        });
+
+        // Initialize WebSocket connection on load
+        connect();
+        fetchScanHistory();
+    </script>
+</body>
+</html>
